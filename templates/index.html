@@ -3,47 +3,50 @@
 <head>
     <meta charset="utf-8">
     <title>מערכת שיבוץ סטודנטים – התאמה חכמה</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=10">
+    <script defer src="{{ url_for('static', filename='js/app.js') }}?v=10"></script>
 </head>
+
 <body>
 <div class="page-wrap">
 
-    <!-- כותרת ראשית -->
-    <h1>מערכת שיבוץ סטודנטים – התאמה חכמה</h1>
-    <p class="subtitle">
-        כאן משבצים סטודנטים למקומות התמחות בקלות, על בסיס תחום התמחות, עיר מגורים ובקשות מיוחדות –
-        ובלחיצת כפתור מורידים קובצי XLSX מסודרים למרצים.
-    </p>
+    <header class="hero">
+        <span class="eyebrow">מערכת שיבוץ חכמה</span>
+        <h1>מערכת שיבוץ סטודנטים – התאמה חכמה</h1>
+        <p class="subtitle">
+            כאן משבצים סטודנטים למקומות התמחות בקלות, על בסיס תחום התמחות, עיר מגורים ובקשות מיוחדות –
+            ובלחיצת כפתור מורידים קובצי XLSX מסודרים למרצים.
+        </p>
+    </header>
 
-    <!-- הוראות שימוש -->
     <section class="card">
         <h2>📘 הוראות שימוש</h2>
         <ol class="instructions">
             <li>
-                <strong>קובץ סטודנטים (CSV/XLSX):</strong>
-                כולל שם פרטי, שם משפחה, תעודת זהות, כתובת/עיר, טלפון, דוא״ל.
-                אופציונלי: תחום מועדף, בקשה מיוחדת (למשל: "קרוב לבית"), בן/בת זוג להכשרה.
+                <strong>קובץ סטודנטים:</strong>
+                כולל שם פרטי, שם משפחה, תעודת זהות, עיר מגורים, טלפון ודוא״ל.
+                אופציונלי: תחום מועדף, בקשה מיוחדת ובן/בת זוג להכשרה.
             </li>
             <li>
-                <strong>קובץ אתרי התמחות/מדריכים (CSV/XLSX):</strong>
-                כולל שם מוסד/שירות, תחום התמחות, רחוב, עיר, קיבולת (מספר סטודנטים), שם המדריך/ה,
-                וחוות דעת מדריך (אופציונלי).
+                <strong>קובץ אתרי התמחות/מדריכים:</strong>
+                כולל שם מוסד, תחום התמחות, עיר, קיבולת, שם מדריך/ה וחוות דעת מדריך.
             </li>
             <li>
                 <strong>שיבוץ אוטומטי:</strong>
-                המערכת מחשבת אחוז התאמה לכל סטודנט/ית לפי תחום (50%), בקשות מיוחדות (45%), עיר (5%),
-                שומרת על קיבולת ומגבילה כמות סטודנטים לכל מדריך.
+                המערכת מחשבת אחוז התאמה לפי תחום, עיר ובקשות מיוחדות, תוך שמירה על קיבולת ומגבלת מדריכים.
             </li>
             <li>
-                <strong>תוצרים:</strong>
-                טבלת שיבוץ, סיכום לפי מקום הכשרה, דוח קיבולות והורדת קבצים מותאמים ל-Excel.
+                <strong>קוקפיט רכזת:</strong>
+                לאחר השיבוץ מוצגים דירוגי התאמה, חריגים ואפשרות להתערבות ידנית.
             </li>
         </ol>
     </section>
 
-    <!-- דוגמה לשימוש -->
     <section class="card">
         <h2>🧪 דוגמה לשימוש</h2>
+
         <div class="examples">
             <div>
                 <h3>סטודנטים – דוגמה</h3>
@@ -63,24 +66,40 @@
                         </thead>
                         <tbody>
                         <tr>
-                            <td>רות</td><td>כהן</td><td>123456789</td><td>תל אביב</td>
-                            <td>0501111111</td><td>ruth@example.com</td>
-                            <td>בריאות הנפש</td><td>קרוב לבית</td>
+                            <td>רות</td>
+                            <td>כהן</td>
+                            <td>123456789</td>
+                            <td>תל אביב</td>
+                            <td>0501111111</td>
+                            <td>ruth@example.com</td>
+                            <td>בריאות הנפש</td>
+                            <td>קרוב לבית</td>
                         </tr>
                         <tr>
-                            <td>יואב</td><td>לוי</td><td>987654321</td><td>חיפה</td>
-                            <td>0502222222</td><td>yoav@example.com</td>
-                            <td>רווחה</td><td></td>
+                            <td>יואב</td>
+                            <td>לוי</td>
+                            <td>987654321</td>
+                            <td>חיפה</td>
+                            <td>0502222222</td>
+                            <td>yoav@example.com</td>
+                            <td>רווחה</td>
+                            <td></td>
                         </tr>
                         <tr>
-                            <td>סמאח</td><td>ח'ורי</td><td>456789123</td><td>עכו</td>
-                            <td>0503333333</td><td>sama@example.com</td>
-                            <td>חינוך מיוחד</td><td></td>
+                            <td>סמאח</td>
+                            <td>ח'ורי</td>
+                            <td>456789123</td>
+                            <td>עכו</td>
+                            <td>0503333333</td>
+                            <td>sama@example.com</td>
+                            <td>חינוך מיוחד</td>
+                            <td></td>
                         </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
+
             <div>
                 <h3>אתרי התמחות – דוגמה</h3>
                 <div class="table-wrap small">
@@ -96,13 +115,25 @@
                         </thead>
                         <tbody>
                         <tr>
-                            <td>מרכז חוסן תל אביב</td><td>בריאות הנפש</td><td>תל אביב</td><td>2</td><td>דניאל כהן</td>
+                            <td>מרכז חוסן תל אביב</td>
+                            <td>בריאות הנפש</td>
+                            <td>תל אביב</td>
+                            <td>2</td>
+                            <td>דניאל כהן</td>
                         </tr>
                         <tr>
-                            <td>מחלקת רווחה חיפה</td><td>רווחה</td><td>חיפה</td><td>1</td><td>מיכל לוי</td>
+                            <td>מחלקת רווחה חיפה</td>
+                            <td>רווחה</td>
+                            <td>חיפה</td>
+                            <td>1</td>
+                            <td>מיכל לוי</td>
                         </tr>
                         <tr>
-                            <td>בית ספר יד לבנים</td><td>חינוך מיוחד</td><td>עכו</td><td>1</td><td>שרה כהן</td>
+                            <td>בית ספר יד לבנים</td>
+                            <td>חינוך מיוחד</td>
+                            <td>עכו</td>
+                            <td>1</td>
+                            <td>שרה כהן</td>
                         </tr>
                         </tbody>
                     </table>
@@ -111,18 +142,20 @@
         </div>
     </section>
 
-    <!-- העלאת קבצים + כפתור שיבוץ -->
     <section class="card">
         <h2>📤 העלאת קבצים וביצוע שיבוץ</h2>
+
         <form method="post" enctype="multipart/form-data" class="upload-form">
             <div class="field">
                 <label>קובץ סטודנטים (CSV / XLSX)</label>
                 <input type="file" name="students_file" required>
             </div>
+
             <div class="field">
                 <label>קובץ אתרי התמחות / מדריכים (CSV / XLSX)</label>
                 <input type="file" name="sites_file" required>
             </div>
+
             <div class="btn-wrap">
                 <button type="submit" class="primary-btn">🚀 בצע שיבוץ</button>
             </div>
@@ -133,10 +166,97 @@
         {% endif %}
     </section>
 
+    {% if cockpit %}
+    <section class="card cockpit-card">
+        <div class="section-title-row">
+            <div>
+                <h2>🎛️ קוקפיט רכזת – דירוגים, חריגים והתערבות ידנית</h2>
+                <p class="section-hint">
+                    כאן מוצגות המלצות המערכת לכל סטודנט/ית, דגלים לבדיקה, וחלופות אפשריות לשיבוץ.
+                </p>
+            </div>
+        </div>
+
+        <div class="cockpit-grid">
+            {% for row in cockpit %}
+            <article class="cockpit-item">
+                <div class="cockpit-head">
+                    <div>
+                        <h3>{{ row.student_name }}</h3>
+                        <p>
+                            עיר: {{ row.student_city or "לא צוין" }} |
+                            תחום מועדף: {{ row.student_pref or "לא צוין" }}
+                        </p>
+                    </div>
+
+                    <span class="score-badge score-{{ row.score_class }}">{{ row.score }}%</span>
+                </div>
+
+                <div class="current-match">
+                    <strong>שיבוץ נוכחי:</strong>
+                    <span>{{ row.current_site }}</span>
+                </div>
+
+                {% if row.flags %}
+                <div class="flags-row">
+                    {% for flag in row.flags %}
+                    <span class="flag-chip">{{ flag }}</span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="flags-row">
+                    <span class="flag-chip ok">ללא חריגים</span>
+                </div>
+                {% endif %}
+
+                <div class="recommendation-box">
+                    <strong>המלצת מערכת:</strong>
+                    <span>{{ row.action }}</span>
+                </div>
+
+                <div class="alternatives">
+                    <strong>דירוג חלופות:</strong>
+                    <ol>
+                        {% for alt in row.alternatives[:3] %}
+                        <li>
+                            {{ alt.site_name }}
+                            <span>{{ alt.score }}%</span>
+                        </li>
+                        {% endfor %}
+                    </ol>
+                </div>
+
+                <div class="manual-override">
+                    <label for="override-{{ row.student_id }}">התערבות ידנית:</label>
+                    <select id="override-{{ row.student_id }}" data-override-select>
+                        {% for alt in row.alternatives %}
+                        <option value="{{ alt.site_name }}" {% if alt.site_name == row.current_site %}selected{% endif %}>
+                            {{ alt.site_name }} – {{ alt.score }}%
+                        </option>
+                        {% endfor %}
+                    </select>
+
+                    <button
+                        type="button"
+                        class="secondary-btn"
+                        data-override-button
+                        data-student-id="{{ row.student_id }}"
+                    >
+                        עדכן שיבוץ
+                    </button>
+
+                    <p class="override-status" data-override-status></p>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
     {% if results %}
-    <!-- תוצאות השיבוץ -->
     <section class="card">
         <h2>📊 תוצאות השיבוץ</h2>
+
         <div class="table-wrap">
             <table>
                 <thead>
@@ -148,111 +268,79 @@
                     <th>עיר המוסד</th>
                     <th>שם מקום ההתמחות</th>
                     <th>שם המדריך/ה</th>
+                    <th>התערבות ידנית</th>
                 </tr>
                 </thead>
+
                 <tbody>
                 {% for row in results %}
-                    <tr>
-                        <td class="score">{{ row["אחוז התאמה"] }}</td>
-                        <td>{{ row["שם הסטודנט/ית"] }}</td>
-                        <td>{{ row["תעודת זהות"] }}</td>
-                        <td>{{ row["תחום התמחות"] or "" }}</td>
-                        <td>{{ row["עיר המוסד"] or "" }}</td>
-                        <td>{{ row["שם מקום ההתמחות"] or "" }}</td>
-                        <td>{{ row["שם המדריך/ה"] or "" }}</td>
-                    </tr>
+                <tr>
+                    <td class="score">{{ row["אחוז התאמה"] }}</td>
+                    <td>{{ row["שם הסטודנט/ית"] }}</td>
+                    <td>{{ row["תעודת זהות"] }}</td>
+                    <td>{{ row["תחום התמחות"] or "" }}</td>
+                    <td>{{ row["עיר המוסד"] or "" }}</td>
+                    <td>{{ row["שם מקום ההתמחות"] or "" }}</td>
+                    <td>{{ row["שם המדריך/ה"] or "" }}</td>
+                    <td>{{ row["התערבות ידנית"] or "" }}</td>
+                </tr>
                 {% endfor %}
                 </tbody>
             </table>
         </div>
+
         <div class="btn-row">
             <a href="{{ url_for('download_results') }}" class="primary-btn">⬇️ הורדת XLSX – תוצאות השיבוץ</a>
         </div>
     </section>
     {% endif %}
 
-{% if explanations and explanations|length > 0 %}
-<section class="card" id="explain-card">
-  <h2>🧩 הסבר ציון – דפדוף בין הסטודנטים</h2>
+    {% if explanations and explanations|length > 0 %}
+    <section class="card" id="explain-card">
+        <h2>🧩 הסבר ציון – דפדוף בין הסטודנטים</h2>
 
-  <!-- מעבירים את המידע מהשרת ל-JS -->
-  <script id="expl-data" type="application/json">
-    {{ explanations | tojson }}
-  </script>
+        <script id="expl-data" type="application/json">
+            {{ explanations | tojson }}
+        </script>
 
-  <p id="expl-header" style="margin-bottom:.6rem;">
-    סטודנט/ית: <strong id="expl-stu"></strong>,
-    מקום התמחות: <strong id="expl-site"></strong>,
-    ציון סופי: <strong id="expl-score"></strong>% 
-    <span id="expl-pos" style="color:#64748b; margin-right:.5rem;"></span>
-  </p>
+        <p id="expl-header">
+            סטודנט/ית: <strong id="expl-stu"></strong>,
+            מקום התמחות: <strong id="expl-site"></strong>,
+            ציון סופי: <strong id="expl-score"></strong>%
+            <span id="expl-pos"></span>
+        </p>
 
-  <div class="table-wrap small">
-    <table id="expl-table">
-      <thead>
-        <tr><th>מרכיב</th><th>תרומה לציון</th></tr>
-      </thead>
-      <tbody id="expl-tbody"></tbody>
-      <tfoot>
-        <tr><td><strong>סה״כ</strong></td><td><strong id="expl-total"></strong></td></tr>
-      </tfoot>
-    </table>
-  </div>
+        <div class="table-wrap small">
+            <table id="expl-table">
+                <thead>
+                <tr>
+                    <th>מרכיב</th>
+                    <th>תרומה לציון</th>
+                </tr>
+                </thead>
 
-  <div class="btn-row">
-  <button type="button" class="btn btn--ghost" id="btn-prev">הקודם</button>
-  <button type="button" class="btn btn--primary" id="btn-next">להבא</button>
-</div>
-</section>
+                <tbody id="expl-tbody"></tbody>
 
-<script>
-(function(){
-  const data = JSON.parse(document.getElementById('expl-data').textContent || '[]');
-  if (!Array.isArray(data) || data.length === 0) return;
+                <tfoot>
+                <tr>
+                    <td><strong>סה״כ</strong></td>
+                    <td><strong id="expl-total"></strong></td>
+                </tr>
+                </tfoot>
+            </table>
+        </div>
 
-  let i = 0;
-  const elStu = document.getElementById('expl-stu');
-  const elSite = document.getElementById('expl-site');
-  const elScore = document.getElementById('expl-score');
-  const elPos = document.getElementById('expl-pos');
-  const elTBody = document.getElementById('expl-tbody');
-  const elTotal = document.getElementById('expl-total');
-
-  function render(){
-    const row = data[i];
-    elStu.textContent = row.student || '';
-    elSite.textContent = row.site || '';
-    elScore.textContent = (row.score ?? '');
-    elPos.textContent = `(${i+1} מתוך ${data.length})`;
-
-    elTBody.innerHTML = '';
-    let sum = 0;
-    for (const [k,v] of Object.entries(row.parts || {})){
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${k}</td><td>${v}</td>`;
-      elTBody.appendChild(tr);
-      sum += (typeof v === 'number' ? v : 0);
-    }
-    elTotal.textContent = sum;
-  }
-
-  function next(){ i = (i + 1) % data.length; render(); }
-  function prev(){ i = (i - 1 + data.length) % data.length; render(); }
-
-  document.getElementById('btn-next').addEventListener('click', next);
-  document.getElementById('btn-prev').addEventListener('click', prev);
-  window.addEventListener('keydown', (e)=>{ if(e.key==='ArrowRight')next(); if(e.key==='ArrowLeft')prev(); });
-
-  render();
-})();
-</script>
-{% endif %}
-
+        <div class="btn-row">
+            <button type="button" class="btn btn--ghost" id="btn-prev">הקודם</button>
+            <button type="button" class="btn btn--primary" id="btn-next">להבא</button>
+        </div>
+    </section>
+    {% endif %}
 
     {% if summary %}
-    <!-- סיכום לפי מקום הכשרה -->
     <section class="card">
         <h2>📝 טבלת סיכום לפי מקום הכשרה</h2>
+
         <div class="table-wrap">
             <table>
                 <thead>
@@ -264,19 +352,21 @@
                     <th>המלצת שיבוץ</th>
                 </tr>
                 </thead>
+
                 <tbody>
                 {% for row in summary %}
-                    <tr>
-                        <td>{{ row["שם מקום ההתמחות"] }}</td>
-                        <td>{{ row["תחום ההתמחות במוסד"] }}</td>
-                        <td>{{ row["שם המדריך"] or "" }}</td>
-                        <td>{{ row["כמה סטודנטים"] }}</td>
-                        <td>{{ row["המלצת שיבוץ"] }}</td>
-                    </tr>
+                <tr>
+                    <td>{{ row["שם מקום ההתמחות"] }}</td>
+                    <td>{{ row["תחום ההתמחות במוסד"] }}</td>
+                    <td>{{ row["שם המדריך"] or "" }}</td>
+                    <td>{{ row["כמה סטודנטים"] }}</td>
+                    <td>{{ row["המלצת שיבוץ"] }}</td>
+                </tr>
                 {% endfor %}
                 </tbody>
             </table>
         </div>
+
         <div class="btn-row">
             <a href="{{ url_for('download_summary') }}" class="primary-btn">⬇️ הורדת XLSX – טבלת סיכום</a>
         </div>
@@ -284,9 +374,9 @@
     {% endif %}
 
     {% if capacities %}
-    <!-- דוח קיבולות -->
     <section class="card">
         <h2>🏷️ דוח קיבולות לפי מקום הכשרה</h2>
+
         <div class="table-wrap small">
             <table>
                 <thead>
@@ -297,14 +387,15 @@
                     <th>יתרה/חוסר</th>
                 </tr>
                 </thead>
+
                 <tbody>
                 {% for row in capacities %}
-                    <tr class="{% if row['יתרה/חוסר'] < 0 %}bad{% elif row['יתרה/חוסר'] > 0 %}good{% endif %}">
-                        <td>{{ row["שם מקום ההתמחות"] }}</td>
-                        <td>{{ row["קיבולת"] }}</td>
-                        <td>{{ row["שובצו בפועל"] }}</td>
-                        <td>{{ row["יתרה/חוסר"] }}</td>
-                    </tr>
+                <tr class="{% if row['יתרה/חוסר'] < 0 %}bad{% elif row['יתרה/חוסר'] > 0 %}good{% endif %}">
+                    <td>{{ row["שם מקום ההתמחות"] }}</td>
+                    <td>{{ row["קיבולת"] }}</td>
+                    <td>{{ row["שובצו בפועל"] }}</td>
+                    <td>{{ row["יתרה/חוסר"] }}</td>
+                </tr>
                 {% endfor %}
                 </tbody>
             </table>
@@ -315,6 +406,3 @@
 </div>
 </body>
 </html>
-
-
-
