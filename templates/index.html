@@ -5,8 +5,8 @@
     <title>מערכת שיבוץ סטודנטים – התאמה חכמה</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=10">
-    <script defer src="{{ url_for('static', filename='js/app.js') }}?v=10"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=12">
+    <script defer src="{{ url_for('static', filename='js/app.js') }}?v=12"></script>
 </head>
 
 <body>
@@ -17,7 +17,7 @@
         <h1>מערכת שיבוץ סטודנטים – התאמה חכמה</h1>
         <p class="subtitle">
             כאן משבצים סטודנטים למקומות התמחות בקלות, על בסיס תחום התמחות, עיר מגורים ובקשות מיוחדות –
-            ובלחיצת כפתור מורידים קובצי XLSX מסודרים למרצים.
+            ובלחיצת כפתור מורידים קבצים מסודרים למרצים.
         </p>
     </header>
 
@@ -39,7 +39,7 @@
             </li>
             <li>
                 <strong>קוקפיט רכזת:</strong>
-                לאחר השיבוץ מוצגים דירוגי התאמה, חריגים ואפשרות להתערבות ידנית.
+                לאחר השיבוץ מוצגים דירוגי התאמה, חריגים ואפשרות לעדכון ידני.
             </li>
         </ol>
     </section>
@@ -168,88 +168,128 @@
 
     {% if cockpit %}
     <section class="card cockpit-card">
-        <div class="section-title-row">
-            <div>
-                <h2>🎛️ קוקפיט רכזת – דירוגים, חריגים והתערבות ידנית</h2>
-                <p class="section-hint">
-                    כאן מוצגות המלצות המערכת לכל סטודנט/ית, דגלים לבדיקה, וחלופות אפשריות לשיבוץ.
-                </p>
-            </div>
-        </div>
+        <details class="cockpit-panel">
+            <summary class="cockpit-summary">
+                <span>🎛️ קוקפיט רכזת – דירוגים, חריגים ועדכונים ידניים</span>
+                <small>לחצי לפתיחה / סגירה</small>
+            </summary>
 
-        <div class="cockpit-grid">
-            {% for row in cockpit %}
-            <article class="cockpit-item">
-                <div class="cockpit-head">
-                    <div>
-                        <h3>{{ row.student_name }}</h3>
-                        <p>
-                            עיר: {{ row.student_city or "לא צוין" }} |
-                            תחום מועדף: {{ row.student_pref or "לא צוין" }}
-                        </p>
+            <p class="section-hint">
+                כאן מוצגות המלצות המערכת לכל סטודנט/ית, דגלים לבדיקה, חלופות אפשריות ועדכון שיבוץ ידני.
+            </p>
+
+            <div class="cockpit-filters">
+                <div class="filter-field">
+                    <label for="cockpit-filter-type">סינון לפי:</label>
+                    <select id="cockpit-filter-type">
+                        <option value="all">הכול</option>
+                        <option value="student">שם סטודנט/ית</option>
+                        <option value="site">מקום התמחות</option>
+                        <option value="score">ציון התאמה</option>
+                    </select>
+                </div>
+
+                <div class="filter-field filter-field-wide">
+                    <label for="cockpit-search">חיפוש:</label>
+                    <input
+                        id="cockpit-search"
+                        type="search"
+                        placeholder="לדוגמה: עלי, בית ספר אופק, 74, >=80"
+                    >
+                </div>
+
+                <button type="button" class="btn btn--ghost" id="cockpit-clear">ניקוי</button>
+
+                <p id="cockpit-count" class="cockpit-count"></p>
+            </div>
+
+            <div class="cockpit-grid" id="cockpit-grid">
+                {% for row in cockpit %}
+                <article
+                    class="cockpit-item"
+                    data-cockpit-item
+                    data-student="{{ (row.student_name or '')|lower }}"
+                    data-site="{{ (row.current_site or '')|lower }}"
+                    data-score="{{ row.score }}"
+                    data-search-all="{{ (row.student_name or '')|lower }} {{ (row.current_site or '')|lower }} {{ row.score }} {{ (row.student_city or '')|lower }} {{ (row.student_pref or '')|lower }}"
+                >
+                    <div class="cockpit-head">
+                        <div>
+                            <h3>{{ row.student_name }}</h3>
+                            <p>
+                                עיר: {{ row.student_city or "לא צוין" }} |
+                                תחום מועדף: {{ row.student_pref or "לא צוין" }}
+                            </p>
+                        </div>
+
+                        <span class="score-badge score-{{ row.score_class }}">{{ row.score }}%</span>
                     </div>
 
-                    <span class="score-badge score-{{ row.score_class }}">{{ row.score }}%</span>
-                </div>
+                    <div class="current-match">
+                        <strong>שיבוץ נוכחי:</strong>
+                        <span>{{ row.current_site }}</span>
+                    </div>
 
-                <div class="current-match">
-                    <strong>שיבוץ נוכחי:</strong>
-                    <span>{{ row.current_site }}</span>
-                </div>
-
-                {% if row.flags %}
-                <div class="flags-row">
-                    {% for flag in row.flags %}
-                    <span class="flag-chip">{{ flag }}</span>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="flags-row">
-                    <span class="flag-chip ok">ללא חריגים</span>
-                </div>
-                {% endif %}
-
-                <div class="recommendation-box">
-                    <strong>המלצת מערכת:</strong>
-                    <span>{{ row.action }}</span>
-                </div>
-
-                <div class="alternatives">
-                    <strong>דירוג חלופות:</strong>
-                    <ol>
-                        {% for alt in row.alternatives[:3] %}
-                        <li>
-                            {{ alt.site_name }}
-                            <span>{{ alt.score }}%</span>
-                        </li>
+                    {% if row.flags %}
+                    <div class="flags-row">
+                        {% for flag in row.flags %}
+                        <span class="flag-chip">{{ flag }}</span>
                         {% endfor %}
-                    </ol>
-                </div>
+                    </div>
+                    {% else %}
+                    <div class="flags-row">
+                        <span class="flag-chip ok">ללא חריגים</span>
+                    </div>
+                    {% endif %}
 
-                <div class="manual-override">
-                    <label for="override-{{ row.student_id }}">התערבות ידנית:</label>
-                    <select id="override-{{ row.student_id }}" data-override-select>
-                        {% for alt in row.alternatives %}
-                        <option value="{{ alt.site_name }}" {% if alt.site_name == row.current_site %}selected{% endif %}>
-                            {{ alt.site_name }} – {{ alt.score }}%
-                        </option>
-                        {% endfor %}
-                    </select>
+                    <div class="recommendation-box">
+                        <strong>המלצת מערכת:</strong>
+                        <span>{{ row.action }}</span>
+                    </div>
 
-                    <button
-                        type="button"
-                        class="secondary-btn"
-                        data-override-button
-                        data-student-id="{{ row.student_id }}"
-                    >
-                        עדכן שיבוץ
-                    </button>
+                    <div class="alternatives">
+                        <strong>דירוג חלופות:</strong>
+                        <ol>
+                            {% for alt in row.alternatives[:3] %}
+                            <li>
+                                {{ alt.site_name }}
+                                <span>{{ alt.score }}%</span>
+                            </li>
+                            {% endfor %}
+                        </ol>
+                    </div>
 
-                    <p class="override-status" data-override-status></p>
-                </div>
-            </article>
-            {% endfor %}
-        </div>
+                    <div class="manual-override">
+                        <label for="override-{{ row.student_id }}">
+                            עדכון שיבוץ ידני:
+                            <span class="manual-help">
+                                שינוי זה מסמן שהרכזת שינתה את השיבוץ שהמערכת הציעה.
+                            </span>
+                        </label>
+
+                        <select id="override-{{ row.student_id }}" data-override-select>
+                            {% for alt in row.alternatives %}
+                            <option value="{{ alt.site_name }}" {% if alt.site_name == row.current_site %}selected{% endif %}>
+                                {{ alt.site_name }} – {{ alt.score }}%
+                            </option>
+                            {% endfor %}
+                        </select>
+
+                        <button
+                            type="button"
+                            class="secondary-btn"
+                            data-override-button
+                            data-student-id="{{ row.student_id }}"
+                        >
+                            עדכן שיבוץ
+                        </button>
+
+                        <p class="override-status" data-override-status></p>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </details>
     </section>
     {% endif %}
 
@@ -268,7 +308,7 @@
                     <th>עיר המוסד</th>
                     <th>שם מקום ההתמחות</th>
                     <th>שם המדריך/ה</th>
-                    <th>התערבות ידנית</th>
+                    <th>עודכן ידנית?</th>
                 </tr>
                 </thead>
 
@@ -282,7 +322,7 @@
                     <td>{{ row["עיר המוסד"] or "" }}</td>
                     <td>{{ row["שם מקום ההתמחות"] or "" }}</td>
                     <td>{{ row["שם המדריך/ה"] or "" }}</td>
-                    <td>{{ row["התערבות ידנית"] or "" }}</td>
+                    <td>{{ row["עודכן ידנית?"] or "לא" }}</td>
                 </tr>
                 {% endfor %}
                 </tbody>
@@ -290,7 +330,7 @@
         </div>
 
         <div class="btn-row">
-            <a href="{{ url_for('download_results') }}" class="primary-btn">⬇️ הורדת XLSX – תוצאות השיבוץ</a>
+            <a href="{{ url_for('download_results') }}" class="primary-btn">⬇️ הורדת קובץ – תוצאות השיבוץ</a>
         </div>
     </section>
     {% endif %}
@@ -368,7 +408,7 @@
         </div>
 
         <div class="btn-row">
-            <a href="{{ url_for('download_summary') }}" class="primary-btn">⬇️ הורדת XLSX – טבלת סיכום</a>
+            <a href="{{ url_for('download_summary') }}" class="primary-btn">⬇️ הורדת קובץ – טבלת סיכום</a>
         </div>
     </section>
     {% endif %}
