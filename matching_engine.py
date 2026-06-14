@@ -22,7 +22,7 @@ STU_COLS = {
     "email": ["דוא\"ל", "דוא״ל", "אימייל", "כתובת אימייל", "כתובת מייל"],
     "preferred_field": ["תחום מועדף", "תחומים מועדפים"],
     "special_req": ["בקשה מיוחדת", "בקשות מיוחדות"],
-    "partner": ["בן/בת זוג להכשרה", "בן\\בת זוג להכשרה", "בן/בת זוג", "בן\\בת זוג"]
+    "partner": ["בן/בת זוג להכשרה", "בן\\בת זוג להכשרה", "בן/בת זוג", "בן\\בת זוג"],
 }
 
 SITE_COLS = {
@@ -35,7 +35,7 @@ SITE_COLS = {
     "sup_last": ["שם משפחה"],
     "phone": ["טלפון"],
     "email": ["אימייל", "כתובת מייל", "דוא\"ל", "דוא״ל"],
-    "review": ["חוות דעת מדריך"]
+    "review": ["חוות דעת מדריך"],
 }
 
 
@@ -70,9 +70,27 @@ def read_any(uploaded) -> pd.DataFrame:
 
 
 def normalize_text(x: Any) -> str:
-    if x is None or (isinstance(x, float) and np.isnan(x)):
+    if x is None:
         return ""
-    return str(x).strip()
+
+    try:
+        if pd.isna(x):
+            return ""
+    except Exception:
+        pass
+
+    if isinstance(x, (int, np.integer)):
+        return str(int(x)).strip()
+
+    if isinstance(x, (float, np.floating)):
+        if float(x).is_integer():
+            return str(int(x)).strip()
+        return str(x).strip()
+
+    text = str(x).strip()
+    if text.endswith(".0") and text[:-2].isdigit():
+        return text[:-2]
+    return text
 
 
 def split_tokens(text: str) -> List[str]:
@@ -179,7 +197,7 @@ def compute_score_with_explain(stu: pd.Series, site: pd.Series, W: Weights) -> T
     elif "צפון" in stu_req_lower:
         north_cities = [
             "צפת", "כרמיאל", "נהריה", "עכו", "קריית שמונה",
-            "קרית שמונה", "טבריה", "חורפיש", "מעלות", "סחנין"
+            "קרית שמונה", "טבריה", "חורפיש", "מעלות", "סחנין",
         ]
         north_cities = [c.lower() for c in north_cities]
         special_component = 75 if site_city in north_cities else 50
@@ -192,7 +210,7 @@ def compute_score_with_explain(stu: pd.Series, site: pd.Series, W: Weights) -> T
         "התאמת תחום": round(W.w_field * field_component),
         "מרחק/גיאוגרפיה": round(W.w_city * city_component),
         "בקשות מיוחדות": round(W.w_special * special_component),
-        "עדיפויות הסטודנט/ית": 0
+        "עדיפויות הסטודנט/ית": 0,
     }
 
     score = int(np.clip(sum(parts.values()), 0, 100))
@@ -212,7 +230,7 @@ def candidate_scores_for_student(stu: pd.Series, sites_df: pd.DataFrame, W: Weig
             "supervisor": site.get("שם המדריך", ""),
             "capacity": int(site.get("site_capacity", 1)),
             "score": int(score),
-            "parts": parts
+            "parts": parts,
         })
 
     return sorted(candidates, key=lambda x: x["score"], reverse=True)
@@ -240,8 +258,8 @@ def greedy_match(students_df: pd.DataFrame, sites_df: pd.DataFrame, W: Weights) 
                     "התאמת תחום": 0,
                     "מרחק/גיאוגרפיה": 0,
                     "בקשות מיוחדות": 0,
-                    "עדיפויות הסטודנט/ית": 0
-                }
+                    "עדיפויות הסטודנט/ית": 0,
+                },
             })
             continue
 
@@ -283,7 +301,7 @@ def greedy_match(students_df: pd.DataFrame, sites_df: pd.DataFrame, W: Weights) 
             "שם המדריך": sup_name,
             "אחוז התאמה": int(chosen["score"]),
             "התערבות ידנית": "",
-            "_expl": chosen["_parts"]
+            "_expl": chosen["_parts"],
         })
 
     return pd.DataFrame(results)
@@ -301,13 +319,13 @@ def build_cockpit_rows(
     students_df: pd.DataFrame,
     sites_df: pd.DataFrame,
     base_df: pd.DataFrame,
-    W: Weights
+    W: Weights,
 ) -> List[Dict[str, Any]]:
     rows = []
 
     for _, stu in students_df.iterrows():
         stu_id = normalize_text(stu.get("stu_id", ""))
-        current_rows = base_df[base_df["ת\"ז הסטודנט"].astype(str) == stu_id]
+        current_rows = base_df[base_df["ת\"ז הסטודנט"].apply(normalize_text) == stu_id]
 
         if current_rows.empty:
             current_site = "לא שובץ"
@@ -346,7 +364,7 @@ def build_cockpit_rows(
             "score_class": score_class(current_score),
             "flags": flags,
             "action": action,
-            "alternatives": top_candidates
+            "alternatives": candidates,
         })
 
     return rows
