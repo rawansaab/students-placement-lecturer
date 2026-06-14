@@ -174,8 +174,10 @@ h3 {
 }
 
 .field input[type="file"],
-.manual-override select {
-    padding: 0.55rem 0.7rem;
+.manual-override select,
+.filter-field input,
+.filter-field select {
+    padding: 0.7rem 0.8rem;
     border-radius: 14px;
     border: 1px solid #cbd5f5;
     background: #f9fafb;
@@ -216,6 +218,19 @@ h3 {
     box-shadow: 0 10px 22px rgba(16, 185, 129, 0.22);
 }
 
+.btn--primary {
+    background: var(--grad-main);
+    color: #ffffff;
+    box-shadow: 0 10px 24px rgba(168, 85, 247, 0.18);
+}
+
+.btn--ghost {
+    background: #f6f8fb;
+    color: #6b7280;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
 .primary-btn:hover,
 .secondary-btn:hover,
 .btn:hover {
@@ -242,6 +257,12 @@ h3 {
     background: #fef2f2;
     color: #b91c1c;
     border: 1px solid #fca5a5;
+}
+
+.alert.success {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #bbf7d0;
 }
 
 .table-wrap {
@@ -290,15 +311,8 @@ tr.bad td:last-child {
     font-weight: 800;
 }
 
-.section-title-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-}
-
 .section-hint {
-    margin: -0.5rem auto 1rem;
+    margin: 1rem auto;
     color: var(--muted);
     text-align: center;
     line-height: 1.7;
@@ -307,6 +321,88 @@ tr.bad td:last-child {
 .cockpit-card {
     background:
         linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.96));
+}
+
+.cockpit-panel {
+    display: block;
+}
+
+.cockpit-summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 1.1rem 1.3rem;
+    border-radius: 22px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    font-weight: 900;
+    color: #111827;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+}
+
+.cockpit-summary::-webkit-details-marker {
+    display: none;
+}
+
+.cockpit-summary::after {
+    content: "פתיחה";
+    color: #ffffff;
+    background: var(--grad-main);
+    border-radius: 999px;
+    padding: 0.45rem 1rem;
+    font-size: 0.85rem;
+    box-shadow: 0 10px 22px rgba(168, 85, 247, 0.18);
+}
+
+.cockpit-panel[open] .cockpit-summary::after {
+    content: "סגירה";
+}
+
+.cockpit-summary small {
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-weight: 800;
+}
+
+.cockpit-filters {
+    display: grid;
+    grid-template-columns: 190px 1fr auto;
+    gap: 0.8rem;
+    align-items: end;
+    margin: 1.2rem 0 1.2rem;
+    padding: 1rem;
+    border-radius: 18px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+}
+
+.filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.filter-field label {
+    font-weight: 900;
+    color: #111827;
+    font-size: 0.9rem;
+}
+
+.filter-field input,
+.filter-field select {
+    width: 100%;
+}
+
+.cockpit-count {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-weight: 800;
 }
 
 .cockpit-grid {
@@ -321,6 +417,11 @@ tr.bad td:last-child {
     padding: 1.1rem;
     background: #ffffff;
     box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+}
+
+.cockpit-item[hidden],
+.is-hidden {
+    display: none !important;
 }
 
 .cockpit-head {
@@ -434,22 +535,16 @@ tr.bad td:last-child {
     color: #111827;
 }
 
-.override-status {
-    grid-column: 1 / -1;
-    margin: 0.2rem 0 0;
-    font-size: 0.88rem;
-    font-weight: 800;
+.manual-help {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.5;
 }
 
-.override-status.success {
-    color: #047857;
-}
-
-.override-status.error {
-    color: #b91c1c;
-}
-
-#explain-card .btn-row {
+#explain-card .explain-buttons {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -461,19 +556,6 @@ tr.bad td:last-child {
 #explain-card .btn {
     padding: 10px 22px;
     min-width: 120px;
-}
-
-#explain-card .btn--primary {
-    background: var(--grad-main);
-    color: #ffffff;
-    box-shadow: 0 10px 24px rgba(168, 85, 247, 0.18);
-}
-
-#explain-card .btn--ghost {
-    background: #f6f8fb;
-    color: #6b7280;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
 }
 
 #expl-header {
@@ -516,6 +598,15 @@ tr.bad td:last-child {
     .cockpit-grid {
         grid-template-columns: 1fr;
     }
+
+    .cockpit-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .cockpit-summary {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }
 
 @media (max-width: 640px) {
@@ -531,7 +622,7 @@ tr.bad td:last-child {
         grid-template-columns: 1fr;
     }
 
-    #explain-card .btn-row {
+    #explain-card .explain-buttons {
         gap: 12px;
     }
 
@@ -543,124 +634,12 @@ tr.bad td:last-child {
 }
 
 @media (max-width: 380px) {
-    #explain-card .btn-row {
+    #explain-card .explain-buttons {
         flex-wrap: wrap;
         justify-content: center;
     }
 
     #explain-card .btn {
         flex: 0 0 100%;
-    }
-}
-/* ===== Cockpit open / close + filters ===== */
-
-.cockpit-panel {
-    display: block;
-}
-
-.cockpit-summary {
-    list-style: none;
-    cursor: pointer;
-    padding: 1.1rem 1.3rem;
-    border-radius: 22px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    font-weight: 900;
-    color: #111827;
-    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
-}
-
-.cockpit-summary::-webkit-details-marker {
-    display: none;
-}
-
-.cockpit-summary::after {
-    content: "פתיחה";
-    color: #ffffff;
-    background: var(--grad-main);
-    border-radius: 999px;
-    padding: 0.45rem 1rem;
-    font-size: 0.85rem;
-    box-shadow: 0 10px 22px rgba(168, 85, 247, 0.18);
-}
-
-.cockpit-panel[open] .cockpit-summary::after {
-    content: "סגירה";
-}
-
-.cockpit-summary small {
-    color: var(--muted);
-    font-size: 0.85rem;
-    font-weight: 800;
-}
-
-.cockpit-filters {
-    display: grid;
-    grid-template-columns: 190px 1fr auto;
-    gap: 0.8rem;
-    align-items: end;
-    margin: 1.2rem 0 1.2rem;
-    padding: 1rem;
-    border-radius: 18px;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
-}
-
-.filter-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-}
-
-.filter-field label {
-    font-weight: 900;
-    color: #111827;
-    font-size: 0.9rem;
-}
-
-.filter-field input,
-.filter-field select {
-    width: 100%;
-    padding: 0.7rem 0.8rem;
-    border-radius: 14px;
-    border: 1px solid #cbd5f5;
-    background: #f9fafb;
-    font-size: 0.92rem;
-}
-
-.cockpit-count {
-    grid-column: 1 / -1;
-    margin: 0;
-    color: var(--muted);
-    font-size: 0.9rem;
-    font-weight: 800;
-}
-
-.is-hidden {
-    display: none !important;
-}
-
-.manual-help {
-    display: block;
-    margin-top: 0.25rem;
-    color: var(--muted);
-    font-size: 0.82rem;
-    font-weight: 700;
-    line-height: 1.5;
-}
-
-@media (max-width: 900px) {
-    .cockpit-filters {
-        grid-template-columns: 1fr;
-    }
-
-    .cockpit-summary {
-        flex-direction: column;
-        align-items: flex-start;
     }
 }
