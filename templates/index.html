@@ -4,9 +4,7 @@
     <meta charset="utf-8">
     <title>מערכת שיבוץ סטודנטים – התאמה חכמה</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=12">
-    <script defer src="{{ url_for('static', filename='js/app.js') }}?v=12"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20">
 </head>
 
 <body>
@@ -39,7 +37,7 @@
             </li>
             <li>
                 <strong>קוקפיט רכזת:</strong>
-                לאחר השיבוץ מוצגים דירוגי התאמה, חריגים ואפשרות לעדכון ידני.
+                לאחר השיבוץ מוצגים דירוגי התאמה, חריגים ואפשרות לעדכון שיבוץ ידני.
             </li>
         </ol>
     </section>
@@ -164,6 +162,10 @@
         {% if error %}
         <div class="alert error">{{ error }}</div>
         {% endif %}
+
+        {% if success %}
+        <div class="alert success">{{ success }}</div>
+        {% endif %}
     </section>
 
     {% if cockpit %}
@@ -194,12 +196,11 @@
                     <input
                         id="cockpit-search"
                         type="search"
-                        placeholder="לדוגמה: עלי, בית ספר אופק, 74, >=80"
+                        placeholder="לדוגמה: רואן, בית ספר אופק, 74, >=80"
                     >
                 </div>
 
                 <button type="button" class="btn btn--ghost" id="cockpit-clear">ניקוי</button>
-
                 <p id="cockpit-count" class="cockpit-count"></p>
             </div>
 
@@ -208,10 +209,10 @@
                 <article
                     class="cockpit-item"
                     data-cockpit-item
-                    data-student="{{ (row.student_name or '')|lower }}"
-                    data-site="{{ (row.current_site or '')|lower }}"
+                    data-student="{{ (row.student_name or '')|lower|e }}"
+                    data-site="{{ (row.current_site or '')|lower|e }}"
                     data-score="{{ row.score }}"
-                    data-search-all="{{ (row.student_name or '')|lower }} {{ (row.current_site or '')|lower }} {{ row.score }} {{ (row.student_city or '')|lower }} {{ (row.student_pref or '')|lower }}"
+                    data-search-all="{{ ((row.student_name or '') ~ ' ' ~ (row.current_site or '') ~ ' ' ~ row.score ~ ' ' ~ (row.student_city or '') ~ ' ' ~ (row.student_pref or ''))|lower|e }}"
                 >
                     <div class="cockpit-head">
                         <div>
@@ -259,7 +260,9 @@
                         </ol>
                     </div>
 
-                    <div class="manual-override">
+                    <form method="post" action="{{ url_for('override_form') }}" class="manual-override">
+                        <input type="hidden" name="student_id" value="{{ row.student_id }}">
+
                         <label for="override-{{ row.student_id }}">
                             עדכון שיבוץ ידני:
                             <span class="manual-help">
@@ -267,7 +270,7 @@
                             </span>
                         </label>
 
-                        <select id="override-{{ row.student_id }}" data-override-select>
+                        <select id="override-{{ row.student_id }}" name="site_name" data-override-select>
                             {% for alt in row.alternatives %}
                             <option value="{{ alt.site_name }}" {% if alt.site_name == row.current_site %}selected{% endif %}>
                                 {{ alt.site_name }} – {{ alt.score }}%
@@ -275,17 +278,10 @@
                             {% endfor %}
                         </select>
 
-                        <button
-                            type="button"
-                            class="secondary-btn"
-                            data-override-button
-                            data-student-id="{{ row.student_id }}"
-                        >
+                        <button type="submit" class="secondary-btn">
                             עדכן שיבוץ
                         </button>
-
-                        <p class="override-status" data-override-status></p>
-                    </div>
+                    </form>
                 </article>
                 {% endfor %}
             </div>
@@ -339,15 +335,14 @@
     <section class="card" id="explain-card">
         <h2>🧩 הסבר ציון – דפדוף בין הסטודנטים</h2>
 
-        <script id="expl-data" type="application/json">
-            {{ explanations | tojson }}
-        </script>
+        <script id="expl-data" type="application/json">{{ explanations | tojson }}</script>
 
+        {% set first_expl = explanations[0] %}
         <p id="expl-header">
-            סטודנט/ית: <strong id="expl-stu"></strong>,
-            מקום התמחות: <strong id="expl-site"></strong>,
-            ציון סופי: <strong id="expl-score"></strong>%
-            <span id="expl-pos"></span>
+            סטודנט/ית: <strong id="expl-stu">{{ first_expl.student }}</strong>,
+            מקום התמחות: <strong id="expl-site">{{ first_expl.site }}</strong>,
+            ציון סופי: <strong id="expl-score">{{ first_expl.score }}</strong>%
+            <span id="expl-pos">(1 מתוך {{ explanations|length }})</span>
         </p>
 
         <div class="table-wrap small">
@@ -359,18 +354,27 @@
                 </tr>
                 </thead>
 
-                <tbody id="expl-tbody"></tbody>
+                <tbody id="expl-tbody">
+                {% set total = namespace(value=0) %}
+                {% for key, value in first_expl.parts.items() %}
+                    {% set total.value = total.value + value %}
+                    <tr>
+                        <td>{{ key }}</td>
+                        <td>{{ value }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
 
                 <tfoot>
                 <tr>
                     <td><strong>סה״כ</strong></td>
-                    <td><strong id="expl-total"></strong></td>
+                    <td><strong id="expl-total">{{ total.value }}</strong></td>
                 </tr>
                 </tfoot>
             </table>
         </div>
 
-        <div class="btn-row">
+        <div class="btn-row explain-buttons">
             <button type="button" class="btn btn--ghost" id="btn-prev">הקודם</button>
             <button type="button" class="btn btn--primary" id="btn-next">להבא</button>
         </div>
@@ -444,5 +448,166 @@
     {% endif %}
 
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    initExplanationPager();
+    initCockpitFilters();
+});
+
+function initExplanationPager() {
+    const dataScript = document.getElementById('expl-data');
+    if (!dataScript) return;
+
+    let data = [];
+
+    try {
+        data = JSON.parse(dataScript.textContent || '[]');
+    } catch (error) {
+        console.error('שגיאה בקריאת נתוני הסבר הציון:', error);
+        return;
+    }
+
+    if (!Array.isArray(data) || data.length === 0) return;
+
+    let i = 0;
+
+    const elStu = document.getElementById('expl-stu');
+    const elSite = document.getElementById('expl-site');
+    const elScore = document.getElementById('expl-score');
+    const elPos = document.getElementById('expl-pos');
+    const elTBody = document.getElementById('expl-tbody');
+    const elTotal = document.getElementById('expl-total');
+
+    if (!elStu || !elSite || !elScore || !elPos || !elTBody || !elTotal) return;
+
+    function render() {
+        const row = data[i] || {};
+        const parts = row.parts || {};
+        let sum = 0;
+
+        elStu.textContent = row.student || '';
+        elSite.textContent = row.site || '';
+        elScore.textContent = row.score ?? '';
+        elPos.textContent = `(${i + 1} מתוך ${data.length})`;
+        elTBody.innerHTML = '';
+
+        Object.entries(parts).forEach(([key, value]) => {
+            const tr = document.createElement('tr');
+            const tdKey = document.createElement('td');
+            const tdValue = document.createElement('td');
+
+            tdKey.textContent = key;
+            tdValue.textContent = value;
+
+            tr.appendChild(tdKey);
+            tr.appendChild(tdValue);
+            elTBody.appendChild(tr);
+
+            const numericValue = Number(value);
+            if (!Number.isNaN(numericValue)) {
+                sum += numericValue;
+            }
+        });
+
+        elTotal.textContent = sum;
+    }
+
+    const nextBtn = document.getElementById('btn-next');
+    const prevBtn = document.getElementById('btn-prev');
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function () {
+            i = (i + 1) % data.length;
+            render();
+        });
+    }
+
+    if (prevBtn) {
+        prevBtn.addEventListener('click', function () {
+            i = (i - 1 + data.length) % data.length;
+            render();
+        });
+    }
+
+    render();
+}
+
+function initCockpitFilters() {
+    const searchInput = document.getElementById('cockpit-search');
+    const filterType = document.getElementById('cockpit-filter-type');
+    const clearBtn = document.getElementById('cockpit-clear');
+    const countEl = document.getElementById('cockpit-count');
+    const items = Array.from(document.querySelectorAll('[data-cockpit-item]'));
+
+    if (!searchInput || !filterType || items.length === 0) return;
+
+    function scoreMatches(score, query) {
+        const raw = query.replace('%', '').trim();
+        const numberOnly = raw.replace(/[<>=]/g, '').trim();
+        const num = Number(numberOnly);
+
+        if (Number.isNaN(num)) {
+            return String(score).includes(raw);
+        }
+
+        if (raw.startsWith('>=')) return score >= num;
+        if (raw.startsWith('<=')) return score <= num;
+        if (raw.startsWith('>')) return score > num;
+        if (raw.startsWith('<')) return score < num;
+
+        return String(score).includes(String(num));
+    }
+
+    function applyFilter() {
+        const query = searchInput.value.trim().toLowerCase();
+        const type = filterType.value;
+        let visible = 0;
+
+        items.forEach(item => {
+            const student = (item.dataset.student || '').toLowerCase();
+            const site = (item.dataset.site || '').toLowerCase();
+            const all = (item.dataset.searchAll || '').toLowerCase();
+            const score = Number(item.dataset.score || 0);
+            let match = true;
+
+            if (query) {
+                if (type === 'student') {
+                    match = student.includes(query);
+                } else if (type === 'site') {
+                    match = site.includes(query);
+                } else if (type === 'score') {
+                    match = scoreMatches(score, query);
+                } else {
+                    match = all.includes(query);
+                }
+            }
+
+            item.hidden = !match;
+            item.classList.toggle('is-hidden', !match);
+
+            if (match) visible += 1;
+        });
+
+        if (countEl) {
+            countEl.textContent = `מוצגים ${visible} מתוך ${items.length}`;
+        }
+    }
+
+    searchInput.addEventListener('input', applyFilter);
+    filterType.addEventListener('change', applyFilter);
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            searchInput.value = '';
+            filterType.value = 'all';
+            applyFilter();
+            searchInput.focus();
+        });
+    }
+
+    applyFilter();
+}
+</script>
 </body>
 </html>
