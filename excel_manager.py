@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 from io import BytesIO
 import pandas as pd
@@ -21,12 +20,12 @@ def df_to_xlsx_bytes(df: pd.DataFrame, sheet_name: str = "שיבוץ") -> bytes:
         header_fmt = workbook.add_format({
             "bold": True,
             "bg_color": "#EEF2FF",
-            "border": 1
+            "border": 1,
         })
 
         for col_idx, col_name in enumerate(cols):
             worksheet.write(0, col_idx, col_name, header_fmt)
-            worksheet.set_column(col_idx, col_idx, 18)
+            worksheet.set_column(col_idx, col_idx, 20)
 
         if "אחוז התאמה" in cols:
             score_col = cols.index("אחוז התאמה")
