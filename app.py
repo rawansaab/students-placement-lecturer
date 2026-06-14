@@ -79,19 +79,45 @@ def empty_context(error=None):
     }
 
 
+def normalize_id_value(value) -> str:
+    """
+    מנרמל תעודות זהות כדי למנוע בעיות בין Excel/CSV:
+    למשל 123456789.0 יהפוך ל-123456789.
+    """
+    text = normalize_text(value)
+
+    if text.endswith(".0") and text[:-2].isdigit():
+        return text[:-2]
+
+    return text
+
+
+def normalize_series(series: pd.Series) -> pd.Series:
+    return series.apply(normalize_id_value)
+
+
 def make_display_results(base_df: pd.DataFrame) -> pd.DataFrame:
-    return pd.DataFrame({
+    if "התערבות ידנית" in base_df.columns:
+        manual_values = base_df["התערבות ידנית"].apply(
+            lambda x: "כן" if normalize_text(x) == "כן" else "לא"
+        )
+    else:
+        manual_values = pd.Series(["לא"] * len(base_df), index=base_df.index)
+
+    df = pd.DataFrame({
         "אחוז התאמה": base_df["אחוז התאמה"].astype(int),
         "שם הסטודנט/ית": (
             base_df["שם פרטי"].astype(str) + " " + base_df["שם משפחה"].astype(str)
         ).str.strip(),
-        "תעודת זהות": base_df["ת\"ז הסטודנט"],
+        "תעודת זהות": base_df["ת\"ז הסטודנט"].apply(normalize_id_value),
         "תחום התמחות": base_df["תחום ההתמחות במוסד"],
         "עיר המוסד": base_df["עיר המוסד"],
         "שם מקום ההתמחות": base_df["שם מקום ההתמחות"],
         "שם המדריך/ה": base_df["שם המדריך"],
-        "התערבות ידנית": base_df.get("התערבות ידנית", "")
-    }).sort_values("אחוז התאמה", ascending=False)
+        "עודכן ידנית?": manual_values
+    })
+
+    return df.sort_values("אחוז התאמה", ascending=False)
 
 
 def make_summary(base_df: pd.DataFrame) -> pd.DataFrame:
@@ -137,6 +163,7 @@ def make_summary(base_df: pd.DataFrame) -> pd.DataFrame:
 
 def make_capacities(sites_df: pd.DataFrame, base_df: pd.DataFrame) -> pd.DataFrame:
     caps = sites_df.groupby("site_name")["site_capacity"].sum().to_dict()
+
     valid = base_df[base_df["שם מקום ההתמחות"] != "לא שובץ"].copy()
     assigned = valid.groupby("שם מקום ההתמחות")["ת\"ז הסטודנט"].count().to_dict()
 
@@ -157,11 +184,15 @@ def make_explanations(base_df: pd.DataFrame):
     explanations = []
 
     for _, r in base_df.iterrows():
+        parts = r.get("_expl", {})
+        if not isinstance(parts, dict):
+            parts = {}
+
         explanations.append({
             "student": f"{r['שם פרטי']} {r['שם משפחה']}",
             "site": r["שם מקום ההתמחות"],
             "score": int(r["אחוז התאמה"]),
-            "parts": r["_expl"]
+            "parts": parts
         })
 
     return explanations
@@ -176,6 +207,7 @@ def build_context_from_current(error=None):
         return context
 
     df_show = make_display_results(last_results_df)
+
     summary_df = make_summary(last_results_df)
     last_summary_df = summary_df.copy()
 
@@ -233,6 +265,7 @@ def index():
         last_students_df = students.copy()
         last_sites_df = sites.copy()
         last_results_df = base_df.copy()
+        last_summary_df = make_summary(last_results_df)
 
         return render_template("index.html", **build_context_from_current())
 
@@ -245,35 +278,59 @@ def index():
 
 @app.route("/api/override", methods=["POST"])
 def apply_override():
-    global last_results_df, last_students_df, last_sites_df
+    global last_results_df, last_summary_df, last_students_df, last_sites_df
 
     if last_results_df is None or last_students_df is None or last_sites_df is None:
         return jsonify({"ok": False, "message": "אין נתוני שיבוץ פעילים."}), 400
 
     data = request.get_json(silent=True) or {}
-    student_id = normalize_text(data.get("student_id", ""))
+
+    student_id = normalize_id_value(data.get("student_id", ""))
     target_site = normalize_text(data.get("site_name", ""))
 
     if not student_id or not target_site:
         return jsonify({"ok": False, "message": "חסר סטודנט או מקום התמחות."}), 400
 
-    row_mask = last_results_df["ת\"ז הסטודנט"].astype(str) == student_id
+    id_series = normalize_series(last_results_df["ת\"ז הסטודנט"])
+    row_mask = id_series == student_id
+
     if not row_mask.any():
         return jsonify({"ok": False, "message": "הסטודנט לא נמצא בתוצאות."}), 404
 
-    site_rows = last_sites_df[last_sites_df["site_name"] == target_site]
+    site_rows = last_sites_df[
+        last_sites_df["site_name"].apply(normalize_text) == target_site
+    ]
+
     if site_rows.empty:
         return jsonify({"ok": False, "message": "מקום ההתמחות לא נמצא."}), 404
 
     current_site = last_results_df.loc[row_mask, "שם מקום ההתמחות"].iloc[0]
+    current_score = int(last_results_df.loc[row_mask, "אחוז התאמה"].iloc[0])
+
+    if normalize_text(current_site) == target_site:
+        return jsonify({
+            "ok": True,
+            "message": "לא בוצע שינוי: זה כבר השיבוץ הנוכחי.",
+            "score": current_score
+        })
 
     assigned_without_student = last_results_df[
-        (last_results_df["ת\"ז הסטודנט"].astype(str) != student_id) &
+        (normalize_series(last_results_df["ת\"ז הסטודנט"]) != student_id) &
         (last_results_df["שם מקום ההתמחות"] != "לא שובץ")
     ]
 
-    used_target = int((assigned_without_student["שם מקום ההתמחות"] == target_site).sum())
-    target_capacity = int(site_rows["site_capacity"].sum())
+    used_target = int(
+        (
+            assigned_without_student["שם מקום ההתמחות"].apply(normalize_text)
+            == target_site
+        ).sum()
+    )
+
+    target_capacity = int(
+        pd.to_numeric(site_rows["site_capacity"], errors="coerce")
+        .fillna(1)
+        .sum()
+    )
 
     if used_target >= target_capacity:
         return jsonify({
@@ -281,12 +338,15 @@ def apply_override():
             "message": "לא ניתן לשבץ: הקיבולת במקום ההתמחות מלאה."
         }), 400
 
-    stu_row = last_students_df[last_students_df["stu_id"].astype(str) == student_id]
-    if stu_row.empty:
+    stu_rows = last_students_df[
+        last_students_df["stu_id"].apply(normalize_id_value) == student_id
+    ]
+
+    if stu_rows.empty:
         return jsonify({"ok": False, "message": "נתוני הסטודנט לא נמצאו."}), 404
 
     site = site_rows.iloc[0]
-    stu = stu_row.iloc[0]
+    stu = stu_rows.iloc[0]
 
     score, parts = compute_score_with_explain(stu, site, Weights())
 
@@ -299,6 +359,8 @@ def apply_override():
     last_results_df.at[idx, "אחוז התאמה"] = int(score)
     last_results_df.at[idx, "התערבות ידנית"] = "כן"
     last_results_df.at[idx, "_expl"] = parts
+
+    last_summary_df = make_summary(last_results_df)
 
     return jsonify({
         "ok": True,
