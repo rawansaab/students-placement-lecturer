@@ -1,408 +1,239 @@
-# -*- coding: utf-8 -*-
-import os
-from io import BytesIO
-from typing import Optional
+document.addEventListener('DOMContentLoaded', function () {
+    initExplanationPager();
+    initManualOverrides();
+    initCockpitFilters();
+});
 
-import pandas as pd
-from flask import Flask, render_template, request, send_file, jsonify
-from markupsafe import Markup
+function initExplanationPager() {
+    const dataScript = document.getElementById('expl-data');
+    if (!dataScript) return;
 
-from matching_engine import (
-    Weights,
-    read_any,
-    resolve_students,
-    resolve_sites,
-    greedy_match,
-    build_cockpit_rows,
-    compute_score_with_explain,
-    normalize_text
-)
-from excel_manager import df_to_xlsx_bytes
+    let data = [];
 
-app = Flask(__name__)
-
-last_results_df: Optional[pd.DataFrame] = None
-last_summary_df: Optional[pd.DataFrame] = None
-last_students_df: Optional[pd.DataFrame] = None
-last_sites_df: Optional[pd.DataFrame] = None
-
-
-@app.before_request
-def maintenance_mode():
-    if os.getenv("MAINTENANCE_MODE", "0") == "1":
-        html = """
-        <html lang="he" dir="rtl">
-        <head>
-          <meta charset="utf-8">
-          <title>האתר סגור</title>
-          <style>
-            body{
-              font-family:David,Assistant,system-ui;
-              background:#f8fafc;
-              direction:rtl;
-              text-align:center;
-              margin:0;
-              padding-top:120px;
-              color:#111827;
-            }
-            .box{
-              display:inline-block;
-              padding:32px 40px;
-              border-radius:18px;
-              background:#ffffff;
-              box-shadow:0 10px 30px rgba(15,23,42,.08);
-              border:1px solid #e5e7eb;
-            }
-            h1{margin:0 0 12px;font-size:26px;}
-            p{margin:0;color:#6b7280;}
-          </style>
-        </head>
-        <body>
-          <div class="box">
-            <h1>⚙️ האתר סגור כרגע</h1>
-            <p>הגישה למערכת השיבוץ מוגבלת זמנית.</p>
-          </div>
-        </body>
-        </html>
-        """
-        return Markup(html), 503
-
-
-def empty_context(error=None):
-    return {
-        "results": None,
-        "summary": None,
-        "capacities": None,
-        "explanations": None,
-        "cockpit": None,
-        "error": error
+    try {
+        data = JSON.parse(dataScript.textContent || '[]');
+    } catch (error) {
+        console.error('שגיאה בקריאת נתוני הסבר הציון:', error);
+        return;
     }
 
+    if (!Array.isArray(data) || data.length === 0) return;
 
-def normalize_id_value(value) -> str:
-    """
-    מנרמל תעודות זהות כדי למנוע בעיות בין Excel/CSV:
-    למשל 123456789.0 יהפוך ל-123456789.
-    """
-    text = normalize_text(value)
-
-    if text.endswith(".0") and text[:-2].isdigit():
-        return text[:-2]
-
-    return text
-
-
-def normalize_series(series: pd.Series) -> pd.Series:
-    return series.apply(normalize_id_value)
-
-
-def make_display_results(base_df: pd.DataFrame) -> pd.DataFrame:
-    if "התערבות ידנית" in base_df.columns:
-        manual_values = base_df["התערבות ידנית"].apply(
-            lambda x: "כן" if normalize_text(x) == "כן" else "לא"
-        )
-    else:
-        manual_values = pd.Series(["לא"] * len(base_df), index=base_df.index)
-
-    df = pd.DataFrame({
-        "אחוז התאמה": base_df["אחוז התאמה"].astype(int),
-        "שם הסטודנט/ית": (
-            base_df["שם פרטי"].astype(str) + " " + base_df["שם משפחה"].astype(str)
-        ).str.strip(),
-        "תעודת זהות": base_df["ת\"ז הסטודנט"].apply(normalize_id_value),
-        "תחום התמחות": base_df["תחום ההתמחות במוסד"],
-        "עיר המוסד": base_df["עיר המוסד"],
-        "שם מקום ההתמחות": base_df["שם מקום ההתמחות"],
-        "שם המדריך/ה": base_df["שם המדריך"],
-        "עודכן ידנית?": manual_values
-    })
-
-    return df.sort_values("אחוז התאמה", ascending=False)
+    let i = 0;
 
-
-def make_summary(base_df: pd.DataFrame) -> pd.DataFrame:
-    valid = base_df[base_df["שם מקום ההתמחות"] != "לא שובץ"].copy()
-
-    if valid.empty:
-        return pd.DataFrame(columns=[
-            "שם מקום ההתמחות",
-            "תחום ההתמחות במוסד",
-            "שם המדריך",
-            "כמה סטודנטים",
-            "המלצת שיבוץ"
-        ])
-
-    summary_df = (
-        valid
-        .groupby(["שם מקום ההתמחות", "תחום ההתמחות במוסד", "שם המדריך"], dropna=False)
-        .agg({
-            "ת\"ז הסטודנט": "count",
-            "שם פרטי": list,
-            "שם משפחה": list
-        })
-        .reset_index()
-    )
-
-    summary_df.rename(columns={"ת\"ז הסטודנט": "כמה סטודנטים"}, inplace=True)
-
-    summary_df["המלצת שיבוץ"] = summary_df.apply(
-        lambda row: " + ".join(
-            [f"{f} {l}" for f, l in zip(row["שם פרטי"], row["שם משפחה"])]
-        ),
-        axis=1
-    )
-
-    return summary_df[[
-        "שם מקום ההתמחות",
-        "תחום ההתמחות במוסד",
-        "שם המדריך",
-        "כמה סטודנטים",
-        "המלצת שיבוץ"
-    ]]
-
-
-def make_capacities(sites_df: pd.DataFrame, base_df: pd.DataFrame) -> pd.DataFrame:
-    caps = sites_df.groupby("site_name")["site_capacity"].sum().to_dict()
-
-    valid = base_df[base_df["שם מקום ההתמחות"] != "לא שובץ"].copy()
-    assigned = valid.groupby("שם מקום ההתמחות")["ת\"ז הסטודנט"].count().to_dict()
-
-    cap_rows = []
-    for site_name, capacity in caps.items():
-        used = int(assigned.get(site_name, 0))
-        cap_rows.append({
-            "שם מקום ההתמחות": site_name,
-            "קיבולת": int(capacity),
-            "שובצו בפועל": used,
-            "יתרה/חוסר": int(capacity - used)
-        })
+    const elStu = document.getElementById('expl-stu');
+    const elSite = document.getElementById('expl-site');
+    const elScore = document.getElementById('expl-score');
+    const elPos = document.getElementById('expl-pos');
+    const elTBody = document.getElementById('expl-tbody');
+    const elTotal = document.getElementById('expl-total');
 
-    return pd.DataFrame(cap_rows).sort_values("שם מקום ההתמחות")
+    if (!elStu || !elSite || !elScore || !elPos || !elTBody || !elTotal) return;
 
+    function render() {
+        const row = data[i] || {};
 
-def make_explanations(base_df: pd.DataFrame):
-    explanations = []
+        elStu.textContent = row.student || '';
+        elSite.textContent = row.site || '';
+        elScore.textContent = row.score !== undefined && row.score !== null ? row.score : '';
+        elPos.textContent = `(${i + 1} מתוך ${data.length})`;
 
-    for _, r in base_df.iterrows():
-        parts = r.get("_expl", {})
-        if not isinstance(parts, dict):
-            parts = {}
+        elTBody.innerHTML = '';
 
-        explanations.append({
-            "student": f"{r['שם פרטי']} {r['שם משפחה']}",
-            "site": r["שם מקום ההתמחות"],
-            "score": int(r["אחוז התאמה"]),
-            "parts": parts
-        })
+        let sum = 0;
+        const parts = row.parts || {};
 
-    return explanations
+        Object.entries(parts).forEach(([key, value]) => {
+            const tr = document.createElement('tr');
 
+            const tdKey = document.createElement('td');
+            tdKey.textContent = key;
 
-def build_context_from_current(error=None):
-    global last_results_df, last_summary_df, last_students_df, last_sites_df
+            const tdValue = document.createElement('td');
+            tdValue.textContent = value;
 
-    context = empty_context(error=error)
-
-    if last_results_df is None or last_results_df.empty:
-        return context
-
-    df_show = make_display_results(last_results_df)
-
-    summary_df = make_summary(last_results_df)
-    last_summary_df = summary_df.copy()
-
-    cap_df = pd.DataFrame()
-    cockpit = None
-
-    if last_sites_df is not None:
-        cap_df = make_capacities(last_sites_df, last_results_df)
-
-    if last_students_df is not None and last_sites_df is not None:
-        cockpit = build_cockpit_rows(
-            last_students_df,
-            last_sites_df,
-            last_results_df,
-            Weights()
-        )
-
-    context.update({
-        "results": df_show.to_dict(orient="records"),
-        "summary": summary_df.to_dict(orient="records"),
-        "capacities": cap_df.to_dict(orient="records") if not cap_df.empty else None,
-        "explanations": make_explanations(last_results_df),
-        "cockpit": cockpit,
-        "error": error
-    })
-
-    return context
-
-
-@app.route("/", methods=["GET", "POST"])
-def index():
-    global last_results_df, last_summary_df, last_students_df, last_sites_df
-
-    if request.method == "GET":
-        return render_template("index.html", **build_context_from_current())
-
-    students_file = request.files.get("students_file")
-    sites_file = request.files.get("sites_file")
-
-    if not students_file or not sites_file:
-        return render_template(
-            "index.html",
-            **empty_context("יש להעלות גם קובץ סטודנטים וגם קובץ אתרי התמחות.")
-        )
-
-    try:
-        df_students_raw = read_any(students_file)
-        df_sites_raw = read_any(sites_file)
-
-        students = resolve_students(df_students_raw)
-        sites = resolve_sites(df_sites_raw)
-
-        base_df = greedy_match(students, sites.copy(), Weights())
-
-        last_students_df = students.copy()
-        last_sites_df = sites.copy()
-        last_results_df = base_df.copy()
-        last_summary_df = make_summary(last_results_df)
-
-        return render_template("index.html", **build_context_from_current())
-
-    except Exception as e:
-        return render_template(
-            "index.html",
-            **empty_context(f"שגיאה במהלך השיבוץ: {e}")
-        )
-
-
-@app.route("/api/override", methods=["POST"])
-def apply_override():
-    global last_results_df, last_summary_df, last_students_df, last_sites_df
-
-    if last_results_df is None or last_students_df is None or last_sites_df is None:
-        return jsonify({"ok": False, "message": "אין נתוני שיבוץ פעילים."}), 400
-
-    data = request.get_json(silent=True) or {}
-
-    student_id = normalize_id_value(data.get("student_id", ""))
-    target_site = normalize_text(data.get("site_name", ""))
-
-    if not student_id or not target_site:
-        return jsonify({"ok": False, "message": "חסר סטודנט או מקום התמחות."}), 400
-
-    id_series = normalize_series(last_results_df["ת\"ז הסטודנט"])
-    row_mask = id_series == student_id
-
-    if not row_mask.any():
-        return jsonify({"ok": False, "message": "הסטודנט לא נמצא בתוצאות."}), 404
-
-    site_rows = last_sites_df[
-        last_sites_df["site_name"].apply(normalize_text) == target_site
-    ]
-
-    if site_rows.empty:
-        return jsonify({"ok": False, "message": "מקום ההתמחות לא נמצא."}), 404
-
-    current_site = last_results_df.loc[row_mask, "שם מקום ההתמחות"].iloc[0]
-    current_score = int(last_results_df.loc[row_mask, "אחוז התאמה"].iloc[0])
-
-    if normalize_text(current_site) == target_site:
-        return jsonify({
-            "ok": True,
-            "message": "לא בוצע שינוי: זה כבר השיבוץ הנוכחי.",
-            "score": current_score
-        })
-
-    assigned_without_student = last_results_df[
-        (normalize_series(last_results_df["ת\"ז הסטודנט"]) != student_id) &
-        (last_results_df["שם מקום ההתמחות"] != "לא שובץ")
-    ]
-
-    used_target = int(
-        (
-            assigned_without_student["שם מקום ההתמחות"].apply(normalize_text)
-            == target_site
-        ).sum()
-    )
-
-    target_capacity = int(
-        pd.to_numeric(site_rows["site_capacity"], errors="coerce")
-        .fillna(1)
-        .sum()
-    )
-
-    if used_target >= target_capacity:
-        return jsonify({
-            "ok": False,
-            "message": "לא ניתן לשבץ: הקיבולת במקום ההתמחות מלאה."
-        }), 400
-
-    stu_rows = last_students_df[
-        last_students_df["stu_id"].apply(normalize_id_value) == student_id
-    ]
-
-    if stu_rows.empty:
-        return jsonify({"ok": False, "message": "נתוני הסטודנט לא נמצאו."}), 404
-
-    site = site_rows.iloc[0]
-    stu = stu_rows.iloc[0]
-
-    score, parts = compute_score_with_explain(stu, site, Weights())
-
-    idx = last_results_df[row_mask].index[0]
-
-    last_results_df.at[idx, "שם מקום ההתמחות"] = site["site_name"]
-    last_results_df.at[idx, "עיר המוסד"] = site.get("site_city", "")
-    last_results_df.at[idx, "תחום ההתמחות במוסד"] = site.get("site_field", "")
-    last_results_df.at[idx, "שם המדריך"] = site.get("שם המדריך", "")
-    last_results_df.at[idx, "אחוז התאמה"] = int(score)
-    last_results_df.at[idx, "התערבות ידנית"] = "כן"
-    last_results_df.at[idx, "_expl"] = parts
-
-    last_summary_df = make_summary(last_results_df)
-
-    return jsonify({
-        "ok": True,
-        "message": f"השיבוץ עודכן מ־{current_site} אל {target_site}.",
-        "score": int(score)
-    })
-
-
-@app.route("/download/results")
-def download_results():
-    global last_results_df
-
-    if last_results_df is None or last_results_df.empty:
-        return "אין נתוני שיבוץ להורדה", 400
-
-    df_show = make_display_results(last_results_df)
-    data = df_to_xlsx_bytes(df_show, sheet_name="תוצאות")
-
-    return send_file(
-        BytesIO(data),
-        as_attachment=True,
-        download_name="student_site_matching.xlsx",
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-
-@app.route("/download/summary")
-def download_summary():
-    global last_summary_df
-
-    if last_summary_df is None or last_summary_df.empty:
-        return "אין טבלת סיכום להורדה", 400
-
-    data = df_to_xlsx_bytes(last_summary_df, sheet_name="סיכום")
-
-    return send_file(
-        BytesIO(data),
-        as_attachment=True,
-        download_name="student_site_summary.xlsx",
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+            tr.appendChild(tdKey);
+            tr.appendChild(tdValue);
+
+            elTBody.appendChild(tr);
+
+            const numericValue = Number(value);
+            if (!Number.isNaN(numericValue)) {
+                sum += numericValue;
+            }
+        });
+
+        elTotal.textContent = sum;
+    }
+
+    function next() {
+        i = (i + 1) % data.length;
+        render();
+    }
+
+    function prev() {
+        i = (i - 1 + data.length) % data.length;
+        render();
+    }
+
+    const nextBtn = document.getElementById('btn-next');
+    const prevBtn = document.getElementById('btn-prev');
+
+    if (nextBtn) nextBtn.addEventListener('click', next);
+    if (prevBtn) prevBtn.addEventListener('click', prev);
+
+    window.addEventListener('keydown', function (event) {
+        if (event.key === 'ArrowRight') next();
+        if (event.key === 'ArrowLeft') prev();
+    });
+
+    render();
+}
+
+function initManualOverrides() {
+    document.querySelectorAll('[data-override-button]').forEach(button => {
+        button.addEventListener('click', async function () {
+            const item = button.closest('.cockpit-item');
+            if (!item) return;
+
+            const studentId = button.dataset.studentId;
+            const select = item.querySelector('[data-override-select]');
+            const status = item.querySelector('[data-override-status]');
+
+            if (!studentId || !select) return;
+
+            const siteName = select.value;
+
+            if (!siteName) {
+                if (status) {
+                    status.textContent = 'יש לבחור מקום התמחות.';
+                    status.className = 'override-status error';
+                }
+                return;
+            }
+
+            const originalText = button.textContent;
+
+            button.disabled = true;
+            button.textContent = 'מעדכן...';
+
+            if (status) {
+                status.textContent = '';
+                status.className = 'override-status';
+            }
+
+            try {
+                const response = await fetch('/api/override', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        site_name: siteName
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.ok) {
+                    throw new Error(result.message || 'שגיאה בעדכון השיבוץ.');
+                }
+
+                if (status) {
+                    status.textContent = result.message || 'השיבוץ עודכן בהצלחה.';
+                    status.className = 'override-status success';
+                }
+
+                setTimeout(() => {
+                    window.location.reload();
+                }, 700);
+
+            } catch (error) {
+                if (status) {
+                    status.textContent = error.message;
+                    status.className = 'override-status error';
+                }
+            } finally {
+                button.disabled = false;
+                button.textContent = originalText || 'עדכן שיבוץ';
+            }
+        });
+    });
+}
+
+function initCockpitFilters() {
+    const searchInput = document.getElementById('cockpit-search');
+    const filterType = document.getElementById('cockpit-filter-type');
+    const clearBtn = document.getElementById('cockpit-clear');
+    const countEl = document.getElementById('cockpit-count');
+    const items = Array.from(document.querySelectorAll('[data-cockpit-item]'));
+
+    if (!searchInput || !filterType || items.length === 0) return;
+
+    function scoreMatches(score, query) {
+        const raw = query.replace('%', '').trim();
+        const numberOnly = raw.replace(/[<>=]/g, '').trim();
+        const num = Number(numberOnly);
+
+        if (Number.isNaN(num)) {
+            return String(score).includes(raw);
+        }
+
+        if (raw.startsWith('>=')) return score >= num;
+        if (raw.startsWith('<=')) return score <= num;
+        if (raw.startsWith('>')) return score > num;
+        if (raw.startsWith('<')) return score < num;
+
+        return String(score).includes(String(num));
+    }
+
+    function applyFilter() {
+        const query = searchInput.value.trim().toLowerCase();
+        const type = filterType.value;
+        let visible = 0;
+
+        items.forEach(item => {
+            const student = (item.dataset.student || '').toLowerCase();
+            const site = (item.dataset.site || '').toLowerCase();
+            const all = (item.dataset.searchAll || '').toLowerCase();
+            const score = Number(item.dataset.score || 0);
+
+            let match = true;
+
+            if (query) {
+                if (type === 'student') {
+                    match = student.includes(query);
+                } else if (type === 'site') {
+                    match = site.includes(query);
+                } else if (type === 'score') {
+                    match = scoreMatches(score, query);
+                } else {
+                    match = all.includes(query);
+                }
+            }
+
+            item.classList.toggle('is-hidden', !match);
+
+            if (match) visible += 1;
+        });
+
+        if (countEl) {
+            countEl.textContent = `מוצגים ${visible} מתוך ${items.length}`;
+        }
+    }
+
+    searchInput.addEventListener('input', applyFilter);
+    filterType.addEventListener('change', applyFilter);
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            searchInput.value = '';
+            filterType.value = 'all';
+            applyFilter();
+            searchInput.focus();
+        });
+    }
+
+    applyFilter();
+}
