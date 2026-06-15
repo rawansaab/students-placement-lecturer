@@ -4,7 +4,7 @@ from io import BytesIO
 from typing import Optional, Tuple
 
 import pandas as pd
-from flask import Flask, render_template, request, send_file, jsonify
+from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for
 from markupsafe import Markup
 
 from matching_engine import (
@@ -25,6 +25,17 @@ last_results_df: Optional[pd.DataFrame] = None
 last_summary_df: Optional[pd.DataFrame] = None
 last_students_df: Optional[pd.DataFrame] = None
 last_sites_df: Optional[pd.DataFrame] = None
+
+
+@app.after_request
+def add_no_cache_headers(response):
+    """
+    מונע מהדפדפן להציג תוצאות ישנות מה-Cache אחרי יציאה וחזרה למערכת.
+    """
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 @app.before_request
@@ -68,6 +79,19 @@ def maintenance_mode():
         return Markup(html), 503
 
 
+def clear_current_matching_state():
+    """
+    איפוס מלא של השיבוץ האחרון.
+    כל כניסה חדשה למערכת תתחיל נקייה.
+    """
+    global last_results_df, last_summary_df, last_students_df, last_sites_df
+
+    last_results_df = None
+    last_summary_df = None
+    last_students_df = None
+    last_sites_df = None
+
+
 def empty_context(error=None, success=None):
     return {
         "results": None,
@@ -82,8 +106,10 @@ def empty_context(error=None, success=None):
 
 def normalize_id_value(value) -> str:
     text = normalize_text(value)
+
     if text.endswith(".0") and text[:-2].isdigit():
         return text[:-2]
+
     return text
 
 
@@ -158,10 +184,12 @@ def make_summary(base_df: pd.DataFrame) -> pd.DataFrame:
 
 def make_capacities(sites_df: pd.DataFrame, base_df: pd.DataFrame) -> pd.DataFrame:
     caps = sites_df.groupby("site_name")["site_capacity"].sum().to_dict()
+
     valid = base_df[base_df["שם מקום ההתמחות"] != "לא שובץ"].copy()
     assigned = valid.groupby("שם מקום ההתמחות")["ת\"ז הסטודנט"].count().to_dict()
 
     cap_rows = []
+
     for site_name, capacity in caps.items():
         used = int(assigned.get(site_name, 0))
         cap_rows.append({
@@ -179,6 +207,7 @@ def make_explanations(base_df: pd.DataFrame):
 
     for _, r in base_df.iterrows():
         parts = r.get("_expl", {})
+
         if not isinstance(parts, dict):
             parts = {}
 
@@ -201,6 +230,7 @@ def build_context_from_current(error=None, success=None):
         return context
 
     df_show = make_display_results(last_results_df)
+
     summary_df = make_summary(last_results_df)
     last_summary_df = summary_df.copy()
 
@@ -250,6 +280,7 @@ def perform_override(student_id_raw, target_site_raw) -> Tuple[bool, str, int]:
         return False, "הסטודנט לא נמצא בתוצאות השיבוץ.", 0
 
     site_rows = last_sites_df[last_sites_df["site_name"].apply(normalize_text) == target_site]
+
     if site_rows.empty:
         return False, "מקום ההתמחות לא נמצא בקובץ המקומות.", 0
 
@@ -276,11 +307,13 @@ def perform_override(student_id_raw, target_site_raw) -> Tuple[bool, str, int]:
         return False, "לא ניתן לשבץ: הקיבולת במקום ההתמחות מלאה.", current_score
 
     stu_rows = last_students_df[last_students_df["stu_id"].apply(normalize_id_value) == student_id]
+
     if stu_rows.empty:
         return False, "נתוני הסטודנט לא נמצאו.", 0
 
     stu = stu_rows.iloc[0]
     site = site_rows.iloc[0]
+
     score, parts = compute_score_with_explain(stu, site, Weights())
 
     idx = last_results_df[row_mask].index[0]
@@ -303,7 +336,12 @@ def index():
     global last_results_df, last_summary_df, last_students_df, last_sites_df
 
     if request.method == "GET":
-        return render_template("index.html", **build_context_from_current())
+        """
+        כל כניסה רגילה למערכת השיבוץ מתחילה דף נקי.
+        לכן השיבוץ הקודם לא נשמר ולא מוצג שוב.
+        """
+        clear_current_matching_state()
+        return render_template("index.html", **empty_context())
 
     students_file = request.files.get("students_file")
     sites_file = request.files.get("sites_file")
@@ -356,6 +394,7 @@ def override_form():
 @app.route("/api/override", methods=["POST"])
 def apply_override():
     data = request.get_json(silent=True) or {}
+
     ok, message, score = perform_override(
         data.get("student_id", ""),
         data.get("site_name", ""),
@@ -365,6 +404,15 @@ def apply_override():
         return jsonify({"ok": False, "message": message, "score": score}), 400
 
     return jsonify({"ok": True, "message": message, "score": score})
+
+
+@app.route("/clear")
+def clear_results():
+    """
+    כפתור/קישור איפוס ידני אם תרצי להשתמש בו בעתיד.
+    """
+    clear_current_matching_state()
+    return redirect(url_for("index"))
 
 
 @app.route("/download/results")
